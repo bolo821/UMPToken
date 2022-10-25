@@ -17,11 +17,11 @@ contract TestUMT is ERC1155, IERC2981, Ownable, Pausable, ERC1155Burnable, ERC11
     address private _recipient;
     uint256 private _royaltyPoint = 1000;
 
-    uint256 _totalSupply = 4; // Total supply of NFTs.
+    uint256 _totalSupply = 10; // Total supply of NFTs.
     uint256 _goldSupply = 1; // Total number of gold NFTs.
-    uint256 _platinumSupply = 1; // Total number of platinum NFTs.
-    uint256 _silverSupply = 1; // Total number of silver NFTs.
-    uint256 _copperSupply = 1; // total number of copper NFTs.
+    uint256 _platinumSupply = 2; // Total number of platinum NFTs.
+    uint256 _silverSupply = 3; // Total number of silver NFTs.
+    uint256 _copperSupply = 4; // total number of copper NFTs.
 
     mapping(address => uint256[]) private _userTokens; // Token ids per account.
     mapping(uint256 => METAL) private _metalType; // Metal type per token id.
@@ -49,6 +49,11 @@ contract TestUMT is ERC1155, IERC2981, Ownable, Pausable, ERC1155Burnable, ERC11
     // @Unpause function
     function unpause() public onlyOwner {
         _unpause();
+    }
+
+    // @Total supply of this token.
+    function totalCount() external view returns (uint256) {
+        return _totalSupply;
     }
 
     // @Mint single NFT.

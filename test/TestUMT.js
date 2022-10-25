@@ -36,51 +36,65 @@ describe("UMT contract", function () {
     });
 
     describe("Initial mint", function () {
-        let _umpToken, _owner;
+        let _umpToken, _owner, _totalSupply;
         beforeEach(async () => {
             const { umpToken, owner } = await loadFixture(deployTokenFixture);
             _umpToken = umpToken;
             _owner = owner;
-            await _umpToken.initialMint([0, 1, 2, 3], [1, 1, 1, 1]);
+
+            const totalSupply = await umpToken.totalCount();
+            _totalSupply = totalSupply;
+            let ids = [];
+            let counts = [];
+            for (let i=0; i<totalSupply; i++) {
+                ids.push(i);
+                counts.push(1);
+            }
+
+            await _umpToken.initialMint(ids, counts);
         });
 
         it("Owner should have 1 NFT of id 0 after initial minting.", async function () {
-            expect(await _umpToken.balanceOf(_owner.address, 0)).to.equal(1);
-            expect(await _umpToken.balanceOf(_owner.address, 1)).to.equal(1);
-            expect(await _umpToken.balanceOf(_owner.address, 2)).to.equal(1);
-            expect(await _umpToken.balanceOf(_owner.address, 3)).to.equal(1);
+            for (let i=0; i<_totalSupply; i++) {
+                expect(await _umpToken.balanceOf(_owner.address, i)).to.equal(1);
+            }
         });
 
-        it("Owner token id list should be '0, 1, 2, 3'", async function () {
+        it("Owner token id list should be '0, 1, 2, ... , 9'", async function () {
             const tokenIds = await _umpToken.getUserTokenIds(_owner.address);
-            expect(tokenIds).to.not.deep.have.all.members([
-                ethers.BigNumber.from(0),
-                ethers.BigNumber.from(1),
-                ethers.BigNumber.from(2),
-                ethers.BigNumber.from(3),
-                ethers.BigNumber.from(4)
-            ]);
-            expect(tokenIds).to.deep.have.all.members([
-                ethers.BigNumber.from(0),
-                ethers.BigNumber.from(1),
-                ethers.BigNumber.from(2),
-                ethers.BigNumber.from(3)
-            ]);
+            let expectedArray = [];
+            for (let i=0; i<_totalSupply; i++) {
+                expectedArray.push(ethers.BigNumber.from(i));
+            }
+            expect(tokenIds).to.not.deep.have.all.members([...expectedArray, ...[ethers.BigNumber.from(10)]]);
+            expect(tokenIds).to.deep.have.all.members(expectedArray);
         });
     });
 
     describe("Metal type after setting metal types.", function () {
         it("All token ids should have right metal type after set", async function () {
             const { umpToken } = await loadFixture(deployTokenFixture);
-            await umpToken.initialMint([0, 1, 2, 3], [1, 1, 1, 1]);
-            await umpToken.initMetalType();
-    
-            const type0 = await umpToken.getMetalType(0);
-            const type1 = await umpToken.getMetalType(1);
-            const type2 = await umpToken.getMetalType(2);
-            const type3 = await umpToken.getMetalType(3);
 
-            expect([type0, type1, type2, type3]).to.deep.have.all.members([0, 1, 2, 3]);
+            const totalSupply = await umpToken.totalCount();
+            let ids = [];
+            let counts = [];
+            for (let i=0; i<totalSupply; i++) {
+                ids.push(i);
+                counts.push(1);
+            }
+
+            await umpToken.initialMint(ids, counts);
+            await umpToken.initMetalType();
+
+            let types = [];
+            let allIds = [];
+            for (let i=0; i<totalSupply; i++) {
+                let typeEle = await umpToken.getMetalType(i);
+                types.push(typeEle);
+                allIds.push(i);
+            }
+
+            expect(types).to.deep.have.all.members([0, 1, 1, 2, 2, 2, 3, 3, 3, 3]);
         });
     });
 
@@ -93,7 +107,15 @@ describe("UMT contract", function () {
             _addr1 = addr1;
             _addr2 = addr2;
            
-            await umpToken.initialMint([0, 1, 2, 3], [1, 1, 1, 1]);
+            const totalSupply = await umpToken.totalCount();
+            let ids = [];
+            let counts = [];
+            for (let i=0; i<totalSupply; i++) {
+                ids.push(i);
+                counts.push(1);
+            }
+
+            await _umpToken.initialMint(ids, counts);
             await umpToken.initMetalType();
             await umpToken.safeTransferFrom(owner.address, addr1.address, 1, 1, "0x");
             await umpToken.safeTransferFrom(owner.address, addr2.address, 0, 1, "0x");
@@ -139,7 +161,16 @@ describe("UMT contract", function () {
     describe("Every user except owner can own max 2 NFTs", function () {
         it("Should cause a validation error when purchasing more than 2 tokens.", async function () {
             const { umpToken, owner, addr1 } = await loadFixture(deployTokenFixture);
-            await umpToken.initialMint([0, 1, 2, 3], [1, 1, 1, 1]);
+            
+            const totalSupply = await umpToken.totalCount();
+            let ids = [];
+            let counts = [];
+            for (let i=0; i<totalSupply; i++) {
+                ids.push(i);
+                counts.push(1);
+            }
+
+            await umpToken.initialMint(ids, counts);
             await umpToken.initMetalType();
             await expect(umpToken.safeBatchTransferFrom(owner.address, addr1.address, [0, 1, 2], [1, 1, 1], '0x')).to.be.revertedWith("Account balance could not be bigger than 2");
         });
@@ -147,7 +178,7 @@ describe("UMT contract", function () {
 
     describe("Withdraw contract balance", function () {
         it("withdrawAll should emit WithdarwAll event with arg of contract balance.", async function () {
-            const { umpToken, owner } = await loadFixture(deployTokenFixture);
+            const { umpToken } = await loadFixture(deployTokenFixture);
 
             await umpToken.deposit({ value: 1000 });
             let contractBalance = await umpToken.provider.getBalance(umpToken.address);

@@ -1,5 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
-require('dotenv').config({ path: __dirname + '/.env' })
+require('dotenv').config({ path: __dirname + '/.env' });
+
+require("./tasks/faucet");
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 const GOERLI_PRIVATE_KEY = process.env.GOERLI_PRIVATE_KEY;

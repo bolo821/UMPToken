@@ -27,6 +27,11 @@ contract TestUMT is ERC1155, IERC2981, Ownable, Pausable, ERC1155Burnable, ERC11
     mapping(uint256 => METAL) private _metalType; // Metal type per token id.
     mapping(uint256 => bool) private _tokenSold; // Sell status per token id.
 
+    event InitMetalType();
+    event InitialMint(uint256[], uint256[]);
+    event WithdrawAll(uint256);
+    event Deposit(uint256);
+
     constructor()
         ERC1155("https://www.urbanminerproject.org/")
     {
@@ -34,7 +39,6 @@ contract TestUMT is ERC1155, IERC2981, Ownable, Pausable, ERC1155Burnable, ERC11
         symbol = "TURM772";
         _recipient = 0x6902125e1936b7c1234856A284374B70069ef9FF;
         ERC1155._setURI("ipfs://bafkreibmre4xlda24qjpl52rwyqmfwttlxz33eklqafhytnnuohlyjctvi");
-        
     }
 
     // @Pause function.
@@ -118,28 +122,49 @@ contract TestUMT is ERC1155, IERC2981, Ownable, Pausable, ERC1155Burnable, ERC11
             "ipfs://bafkreig2ifiw5qwukd6mooiiii3zmjucdt7dkv5wrw6yzalxgg7vnhm2hi";
     }
 
-    // @Set metal type to all NFTs. Metal types are determined by random number input groups.
-    function setMetal(uint256[] memory gold, uint256[] memory platinum, uint256[] memory silver, uint256[] memory copper)
+    // @Random generator function.
+    function getRandomNumber(uint256 max, uint256 adder) internal view returns (uint256) {
+        uint256 randomHash = uint256(
+            keccak256(abi.encodePacked(block.timestamp, uint256(7789), adder))
+        );
+        return randomHash % max;
+    }
+
+    // @Set metal type to all NFTs. Metal types are determined by random numbers.
+    function initMetalType()
         external
         onlyOwner
     {
-        require(gold.length == _goldSupply, "Incorrect gold supply");
-        require(platinum.length == _platinumSupply, "Incorrect platinum supply");
-        require(silver.length == _silverSupply, "Incorrect silver supply");
-        require(copper.length == _copperSupply, "Incorrect copper supply");
+        uint256 goldCount = 0;
+        uint256 platinumCount = 0;
+        uint256 silverCount = 0;
+        uint256 copperCount = 0;
+        bool[] memory usedIds = new bool[](_totalSupply);
+        uint256 tryCount = 0;
 
-        for (uint256 i=0; i<gold.length; i++) {
-            _metalType[gold[i]] = METAL.GOLD;
+        while (true) {
+            uint256 tmp = getRandomNumber(_totalSupply, tryCount);
+            tryCount ++;
+            if (usedIds[tmp]) continue;
+            usedIds[tmp] = true;
+        
+            if (goldCount < _goldSupply){
+                _metalType[tmp] = METAL.GOLD;
+                goldCount ++;
+            } else if (platinumCount < _platinumSupply) {
+                _metalType[tmp] = METAL.PLATINUM;
+                platinumCount ++;
+            } else if (silverCount < _silverSupply) {
+                _metalType[tmp] = METAL.SILVER;
+                silverCount ++;
+            } else {
+                _metalType[tmp] = METAL.COPPER;
+                copperCount ++;
+            }
+            if (copperCount == _copperSupply) break;
         }
-        for (uint256 i=0; i<platinum.length; i++) {
-            _metalType[platinum[i]] = METAL.PLATINUM;
-        }
-        for (uint256 i=0; i<silver.length; i++) {
-            _metalType[silver[i]] = METAL.SILVER;
-        }
-        for (uint256 i=0; i<copper.length; i++) {
-            _metalType[copper[i]] = METAL.COPPER;
-        }
+
+        emit InitMetalType();
     }
 
     // @Get metal type for given token id.
@@ -151,6 +176,8 @@ contract TestUMT is ERC1155, IERC2981, Ownable, Pausable, ERC1155Burnable, ERC11
     function initialMint(uint256[] memory ids, uint256[] memory amounts) onlyOwner external {
         mintBatch(owner(), ids, amounts, "0x");
         _userTokens[owner()] = ids;
+
+        emit InitialMint(ids, amounts);
     }
 
     // @Get token owned by specific account.
@@ -181,11 +208,18 @@ contract TestUMT is ERC1155, IERC2981, Ownable, Pausable, ERC1155Burnable, ERC11
         return ERC1155URIStorage.uri(tokenId);
     }
 
+    // @Deposit ETH to contract
+    function deposit() external payable {
+        emit Deposit(msg.value);
+    }
+
     // @Withdraw ETH from contract to owners address
-    function withdrawAll() public onlyOwner {
+    function withdrawAll() external onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0);
         _withdraw(owner(), address(this).balance);
+
+        emit WithdrawAll(balance);
     }
 
     // @Native coin transfer function
